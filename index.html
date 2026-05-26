@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Gerador de Tabuleiros Pixel Art</title>
+    <title>Gerador e Editor de Pixel Art</title>
     <style>
         :root {
             --primary-color: #4a90e2;
@@ -31,7 +31,7 @@
             border-radius: 8px;
             box-shadow: 0 4px 15px rgba(0, 0, 0, 0.05);
             width: 100%;
-            max-width: 850px;
+            max-width: 950px;
             box-sizing: border-box;
             text-align: center;
         }
@@ -54,13 +54,19 @@
             display: flex;
             justify-content: center;
             align-items: center;
-            gap: 15px;
-            margin-bottom: 30px;
+            gap: 20px;
+            margin-bottom: 25px;
             flex-wrap: wrap;
             background: #f8f9fa;
             padding: 15px;
             border-radius: 6px;
             border: 1px solid #e9ecef;
+        }
+
+        .control-group {
+            display: flex;
+            align-items: center;
+            gap: 8px;
         }
 
         label {
@@ -87,7 +93,7 @@
             font-weight: 600;
             border-radius: 4px;
             cursor: pointer;
-            transition: background-color 0.2s ease;
+            transition: all 0.2s ease;
         }
 
         button:hover {
@@ -108,18 +114,31 @@
             font-size: 13px;
             font-weight: bold;
             background: #fff;
-            padding: 6px 12px;
-            border: 1px solid #e2e8f0;
-            border-radius: 4px;
+            padding: 8px 14px;
+            border: 2px solid #e2e8f0;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            user-select: none;
+        }
+
+        .legend-item:hover {
+            border-color: #cbd5e1;
+            transform: translateY(-1px);
+        }
+
+        .legend-item.active {
+            border-color: var(--primary-color);
+            background-color: #ebf5ff;
+            box-shadow: 0 2px 8px rgba(74, 144, 226, 0.2);
         }
 
         .color-box {
-            width: 18px;
-            height: 18px;
-            border: 1px dashed #999;
-            margin-right: 8px;
-            background-color: #fff;
-            border-radius: 3px;
+            width: 22px;
+            height: 22px;
+            margin-right: 10px;
+            border-radius: 4px;
+            border: 1px solid rgba(0,0,0,0.15);
         }
 
         .grid-wrapper {
@@ -130,6 +149,7 @@
             background: #fff;
             border: 1px solid #e2e8f0;
             border-radius: 6px;
+            margin-top: 10px;
         }
 
         #pixelGrid {
@@ -150,13 +170,20 @@
             user-select: none;
             box-sizing: border-box;
             background-color: #ffffff;
+            cursor: cell;
+            transition: background-color 0.1s ease;
         }
 
-        /* Ajustes de impressão para gerar PDFs limpos dos mockups */
+        .cell:hover {
+            filter: brightness(0.95);
+            background-color: #f0f4f8;
+        }
+
         @media print {
             body { background: #fff; padding: 0; }
             .container { box-shadow: none; padding: 0; max-width: 100%; }
             .controls, button { display: none !important; }
+            .legend-item { border-color: #e2e8f0 !important; background: #fff !important; box-shadow: none !important; }
             .grid-wrapper { border: none; padding: 0; }
         }
     </style>
@@ -164,27 +191,35 @@
 <body>
 
 <div class="container">
-    <h1>Gerador de Mockups: Pixel Art</h1>
-    <p class="description">Selecione o tamanho desejado para gerar instantaneamente o tabuleiro limpo com os códigos de pintura.</p>
+    <h1>Gerador e Editor de Pixel Art</h1>
+    <p class="description">Selecione o tamanho e a arte. Clique nas cores da legenda para ativar o pincel e pinte o tabuleiro!</p>
 
     <div class="controls">
-        <label for="gridSize">Tamanho do Tabuleiro:</label>
-        <select id="gridSize">
-            <option value="12">12 x 12</option>
-            <option value="24" selected>24 x 24</option>
-            <option value="36">36 x 36</option>
-            <option value="48">48 x 48</option>
-            <option value="60">60 x 60</option>
-            <option value="72">72 x 72</option>
-        </select>
-        <button onclick="generateGrid()">Gerar Novo Tabuleiro</button>
+        <div class="control-group">
+            <label for="gridSize">Dimensão:</label>
+            <select id="gridSize" onchange="generateGrid()">
+                <option value="12">12 x 12</option>
+                <option value="24" selected>24 x 24</option>
+                <option value="36">36 x 36</option>
+                <option value="48">48 x 48</option>
+                <option value="60">60 x 60</option>
+                <option value="72">72 x 72</option>
+            </select>
+        </div>
+
+        <div class="control-group">
+            <label for="artType">Arte Base:</label>
+            <select id="artType" onchange="generateGrid()">
+                <option value="cupcake">Cupcake Colorido</option>
+                <option value="sword">Espada Pixel</option>
+                <option value="heart">Coração Místico</option>
+            </select>
+        </div>
+
+        <button onclick="resetPainting()">Limpar Pintura</button>
     </div>
 
-    <div class="legend">
-        <div class="legend-item"><div class="color-box"></div> A = Cor de Fundo</div>
-        <div class="legend-item"><div class="color-box"></div> B = Contorno / Detalhe 1</div>
-        <div class="legend-item"><div class="color-box"></div> C = Centro / Detalhe 2</div>
-    </div>
+    <div class="legend" id="colorLegend"></div>
 
     <div class="grid-wrapper">
         <div id="pixelGrid"></div>
@@ -192,26 +227,150 @@
 </div>
 
 <script>
+    // Configurações das paletas e lógicas de desenho por arte
+    const artConfigurations = {
+        cupcake: {
+            palette: [
+                { code: 'B', name: 'Branco/Fundo', color: '#ffffff' },
+                { code: 'R', name: 'Vermelho', color: '#ff4d4d' },
+                { code: 'A', name: 'Laranja', color: '#ff944d' },
+                { code: 'Y', name: 'Amarelo', color: '#ffd11a' },
+                { code: 'V', name: 'Verde', color: '#2ecc71' },
+                { code: 'C', name: 'Azul Celeste', color: '#5ec2f2' },
+                { code: 'P', name: 'Rosa Candy', color: '#ff66b2' },
+                { code: 'M', name: 'Roxo', color: '#9b59b6' }
+            ],
+            fn: (row, col, size, center) => {
+                // Algoritmo para estruturar a silhueta de um Cupcake centralizado dinamicamente
+                const pctY = row / size;
+                const pctX = Math.abs(col - center) / center;
+                
+                if (pctY < 0.15 && pctX < 0.08) return 'R'; // Cereja no topo
+                if (pctY >= 0.15 && pctY < 0.25 && pctX < 0.25) return 'A'; // Creme camada 1
+                if (pctY >= 0.25 && pctY < 0.38 && pctX < 0.40) return 'Y'; // Creme camada 2
+                if (pctY >= 0.38 && pctY < 0.50 && pctX < 0.52) return 'V'; // Creme camada 3
+                if (pctY >= 0.50 && pctY < 0.58 && pctX < 0.55) return 'M'; // Junção do topo com o bolo
+                if (pctY >= 0.58 && pctY < 0.88) {
+                    // Corpo do bolinho afunilado
+                    const limitX = 0.45 - ((pctY - 0.58) * 0.15);
+                    if (pctX < limitX) {
+                        return (col % 2 === 0) ? 'P' : 'C'; // Listras da forminha
+                    }
+                }
+                return 'B';
+            }
+        },
+        sword: {
+            palette: [
+                { code: 'B', name: 'Branco/Fundo', color: '#ffffff' },
+                { code: 'P', name: 'Preto (Contorno)', color: '#2c3e50' },
+                { code: 'C', name: 'Cinza (Lâmina)', color: '#bdc3c7' },
+                { code: 'E', name: 'Azul (Guarda)', color: '#2980b9' },
+                { code: 'M', name: 'Marrom (Cabo)', color: '#8a5229' }
+            ],
+            fn: (row, col, size, center) => {
+                // Lógica proporcional para a espada diagonal
+                const diag = row - col;
+                const invDiag = row + col;
+                const doubleSize = size * 2;
+
+                if (row < size * 0.55 && col > size * 0.45 && Math.abs(diag) < size * 0.08) {
+                    return (Math.abs(diag) < size * 0.04) ? 'C' : 'P';
+                }
+                // Guarda da espada
+                if (Math.abs(invDiag - size) < size * 0.12 && row > size * 0.45 && row < size * 0.75 && col > size * 0.25 && col < size * 0.55) {
+                    return 'E';
+                }
+                // Cabo
+                if (row > size * 0.60 && col < size * 0.40 && Math.abs(diag) < size * 0.05) {
+                    return 'M';
+                }
+                // Contorno geral do cabo e base
+                if (row > size * 0.58 && col < size * 0.42 && Math.abs(diag) < size * 0.09) {
+                    return 'P';
+                }
+                return 'B';
+            }
+        },
+        heart: {
+            palette: [
+                { code: 'B', name: 'Branco/Fundo', color: '#ffffff' },
+                { code: 'V', name: 'Vermelho Vivo', color: '#e74c3c' },
+                { code: 'P', name: 'Rosa Escuro', color: '#c0392b' },
+                { code: 'A', name: 'Amarelo Brilho', color: '#f1c40f' }
+            ],
+            fn: (row, col, size, center) => {
+                // Equação matemática adaptada do coração para grids dinâmicos
+                const x = (col - center) / (size * 0.45);
+                const y = -(row - center * 0.8) / (size * 0.45);
+                
+                // Fórmula clássica do coração: (x^2 + y^2 - 1)^3 - x^2 * y^3 <= 0
+                const expression = Math.pow(x*x + y*y - 1, 3) - x*x * Math.pow(y, 3);
+                
+                if (expression <= 0) {
+                    if (x > -0.3 && x < -0.1 && y > 0.3 && y < 0.5) return 'A'; // Ponto de brilho/reflexo
+                    return (x > 0 || y < 0) ? 'V' : 'P'; // Degradê/Sombra interna
+                }
+                return 'B';
+            }
+        }
+    };
+
+    let selectedColorCode = ''; 
+    let selectedColorHex = '';
+
+    function selectColor(code, hex, element) {
+        selectedColorCode = code;
+        selectedColorHex = hex;
+        
+        // Atualiza a classe ativa visualmente na legenda
+        document.querySelectorAll('.legend-item').forEach(item => item.classList.remove('active'));
+        element.classList.add('active');
+    }
+
     function generateGrid() {
         const grid = document.getElementById('pixelGrid');
         const size = parseInt(document.getElementById('gridSize').value);
+        const artType = document.getElementById('artType').value;
+        const colorLegend = document.getElementById('colorLegend');
         
-        // Limpa o tabuleiro anterior
-        grid.innerHTML = '';
+        const currentArt = artConfigurations[artType];
         
-        // Calcula o tamanho ideal do pixel dinamicamente para não estourar a tela
-        let cellSize = 28;
-        if (size > 24) cellSize = 20;
-        if (size > 48) cellSize = 14;
-        if (size > 60) cellSize = 11;
+        // 1. Renderiza a Legenda Dinâmica com as Cores Ativas
+        colorLegend.innerHTML = '';
+        currentArt.palette.forEach((item, index) => {
+            const legendItem = document.createElement('div');
+            legendItem.classList.add('legend-item');
+            if (index === 0) legendItem.classList.add('active'); // Seleciona a primeira cor por padrão
+            
+            legendItem.onclick = () => selectColor(item.code, item.color, legendItem);
+            
+            const colorBox = document.createElement('div');
+            colorBox.classList.add('color-box');
+            colorBox.style.backgroundColor = item.color;
+            
+            legendItem.appendChild(colorBox);
+            legendItem.append(`${item.code} = ${item.name}`);
+            colorLegend.appendChild(legendItem);
+            
+            if (index === 0) {
+                selectedColorCode = item.code;
+                selectedColorHex = item.color;
+            }
+        });
 
-        // Configura as colunas e linhas do Grid CSS
+        // 2. Configura e Constrói a Estrutura do Grid
+        grid.innerHTML = '';
+        let cellSize = 28;
+        if (size > 24) cellSize = 22;
+        if (size > 36) cellSize = 16;
+        if (size > 48) cellSize = 12;
+        if (size > 60) cellSize = 10;
+
         grid.style.gridTemplateColumns = `repeat(${size}, ${cellSize}px)`;
         grid.style.gridTemplateRows = `repeat(${size}, ${cellSize}px)`;
 
-        // Define os limites lógicos para criar uma imagem geométrica centralizada (ex: um diamante/escudo)
         const center = size / 2;
-        const radius = size * 0.35;
 
         for (let row = 0; row < size; row++) {
             for (let col = 0; col < size; col++) {
@@ -219,32 +378,40 @@
                 cell.classList.add('cell');
                 cell.style.width = `${cellSize}px`;
                 cell.style.height = `${cellSize}px`;
-                
-                // Reduz o tamanho da fonte proporcionalmente ao tamanho da célula
-                cell.style.fontSize = `${cellSize * 0.45}px`;
+                cell.style.fontSize = `${cellSize * 0.5}px`;
 
-                // Algoritmo matemático simples para distribuir letras e formar um desenho misterioso
-                const distanceX = Math.abs(col - center + 0.5);
-                const distanceY = Math.abs(row - center + 0.5);
-                const totalDistance = distanceX + distanceY;
-
-                let code = 'A'; // Fundo por padrão
-
-                if (totalDistance < radius) {
-                    if (Math.abs(totalDistance - radius) < 1.5 || distanceX < 1 || distanceY < 1) {
-                        code = 'B'; // Contornos internos e eixos estruturais
-                    } else {
-                        code = 'C'; // Miolo do desenho
-                    }
-                }
-
+                // Aplica a regra matemática correspondente à arte selecionada
+                const code = currentArt.fn(row, col, size, center);
                 cell.textContent = code;
+                
+                // Atributo customizado para sabermos a resposta correta caso queira validar no futuro
+                cell.dataset.correctCode = code; 
+
+                // Evento de Pintura ao Clicar
+                cell.onclick = () => {
+                    cell.style.backgroundColor = selectedColorHex;
+                    // Se pintou de cor muito escura, muda o texto para branco para manter a legibilidade
+                    if (selectedColorCode === 'P' || selectedColorCode === 'M') {
+                        cell.style.color = '#fff';
+                    } else {
+                        cell.style.color = '#7f8c8d';
+                    }
+                };
+
                 grid.appendChild(cell);
             }
         }
     }
 
-    // Inicializa o primeiro tabuleiro ao carregar a página
+    function resetPainting() {
+        // Retorna todos os fundos das células para branco puro mantendo apenas as letras guia
+        document.querySelectorAll('.cell').forEach(cell => {
+            cell.style.backgroundColor = '#ffffff';
+            cell.style.color = '#7f8c8d';
+        });
+    }
+
+    // Inicializa a aplicação
     window.onload = generateGrid;
 </script>
 
