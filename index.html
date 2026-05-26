@@ -1,0 +1,252 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gerador de Tabuleiros Pixel Art</title>
+    <style>
+        :root {
+            --primary-color: #4a90e2;
+            --primary-hover: #357abd;
+            --bg-color: #f5f7fa;
+            --card-bg: #ffffff;
+            --text-color: #333333;
+            --border-color: #cccccc;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        .container {
+            background-color: var(--card-bg);
+            padding: 30px;
+            border-radius: 8px;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.05);
+            width: 100%;
+            max-width: 850px;
+            box-sizing: border-box;
+            text-align: center;
+        }
+
+        h1 {
+            margin-top: 0;
+            font-size: 24px;
+            color: #2c3e50;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        p.description {
+            color: #666;
+            font-size: 14px;
+            margin-bottom: 25px;
+        }
+
+        .controls {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 15px;
+            margin-bottom: 30px;
+            flex-wrap: wrap;
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 6px;
+            border: 1px solid #e9ecef;
+        }
+
+        label {
+            font-weight: 600;
+            font-size: 14px;
+        }
+
+        select {
+            padding: 8px 12px;
+            font-size: 14px;
+            border-radius: 4px;
+            border: 1px solid var(--border-color);
+            background-color: #fff;
+            outline: none;
+            cursor: pointer;
+        }
+
+        button {
+            background-color: var(--primary-color);
+            color: white;
+            border: none;
+            padding: 9px 20px;
+            font-size: 14px;
+            font-weight: 600;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: background-color 0.2s ease;
+        }
+
+        button:hover {
+            background-color: var(--primary-hover);
+        }
+
+        .legend {
+            display: flex;
+            justify-content: center;
+            gap: 15px;
+            margin-bottom: 25px;
+            flex-wrap: wrap;
+        }
+
+        .legend-item {
+            display: flex;
+            align-items: center;
+            font-size: 13px;
+            font-weight: bold;
+            background: #fff;
+            padding: 6px 12px;
+            border: 1px solid #e2e8f0;
+            border-radius: 4px;
+        }
+
+        .color-box {
+            width: 18px;
+            height: 18px;
+            border: 1px dashed #999;
+            margin-right: 8px;
+            background-color: #fff;
+            border-radius: 3px;
+        }
+
+        .grid-wrapper {
+            display: flex;
+            justify-content: center;
+            overflow-x: auto;
+            padding: 10px;
+            background: #fff;
+            border: 1px solid #e2e8f0;
+            border-radius: 6px;
+        }
+
+        #pixelGrid {
+            display: grid;
+            background-color: #fff;
+            border-top: 1px solid var(--border-color);
+            border-left: 1px solid var(--border-color);
+        }
+
+        .cell {
+            border-right: 1px solid var(--border-color);
+            border-bottom: 1px solid var(--border-color);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-weight: 600;
+            color: #7f8c8d;
+            user-select: none;
+            box-sizing: border-box;
+            background-color: #ffffff;
+        }
+
+        /* Ajustes de impressão para gerar PDFs limpos dos mockups */
+        @media print {
+            body { background: #fff; padding: 0; }
+            .container { box-shadow: none; padding: 0; max-width: 100%; }
+            .controls, button { display: none !important; }
+            .grid-wrapper { border: none; padding: 0; }
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h1>Gerador de Mockups: Pixel Art</h1>
+    <p class="description">Selecione o tamanho desejado para gerar instantaneamente o tabuleiro limpo com os códigos de pintura.</p>
+
+    <div class="controls">
+        <label for="gridSize">Tamanho do Tabuleiro:</label>
+        <select id="gridSize">
+            <option value="12">12 x 12</option>
+            <option value="24" selected>24 x 24</option>
+            <option value="36">36 x 36</option>
+            <option value="48">48 x 48</option>
+            <option value="60">60 x 60</option>
+            <option value="72">72 x 72</option>
+        </select>
+        <button onclick="generateGrid()">Gerar Novo Tabuleiro</button>
+    </div>
+
+    <div class="legend">
+        <div class="legend-item"><div class="color-box"></div> A = Cor de Fundo</div>
+        <div class="legend-item"><div class="color-box"></div> B = Contorno / Detalhe 1</div>
+        <div class="legend-item"><div class="color-box"></div> C = Centro / Detalhe 2</div>
+    </div>
+
+    <div class="grid-wrapper">
+        <div id="pixelGrid"></div>
+    </div>
+</div>
+
+<script>
+    function generateGrid() {
+        const grid = document.getElementById('pixelGrid');
+        const size = parseInt(document.getElementById('gridSize').value);
+        
+        // Limpa o tabuleiro anterior
+        grid.innerHTML = '';
+        
+        // Calcula o tamanho ideal do pixel dinamicamente para não estourar a tela
+        let cellSize = 28;
+        if (size > 24) cellSize = 20;
+        if (size > 48) cellSize = 14;
+        if (size > 60) cellSize = 11;
+
+        // Configura as colunas e linhas do Grid CSS
+        grid.style.gridTemplateColumns = `repeat(${size}, ${cellSize}px)`;
+        grid.style.gridTemplateRows = `repeat(${size}, ${cellSize}px)`;
+
+        // Define os limites lógicos para criar uma imagem geométrica centralizada (ex: um diamante/escudo)
+        const center = size / 2;
+        const radius = size * 0.35;
+
+        for (let row = 0; row < size; row++) {
+            for (let col = 0; col < size; col++) {
+                const cell = document.createElement('div');
+                cell.classList.add('cell');
+                cell.style.width = `${cellSize}px`;
+                cell.style.height = `${cellSize}px`;
+                
+                // Reduz o tamanho da fonte proporcionalmente ao tamanho da célula
+                cell.style.fontSize = `${cellSize * 0.45}px`;
+
+                // Algoritmo matemático simples para distribuir letras e formar um desenho misterioso
+                const distanceX = Math.abs(col - center + 0.5);
+                const distanceY = Math.abs(row - center + 0.5);
+                const totalDistance = distanceX + distanceY;
+
+                let code = 'A'; // Fundo por padrão
+
+                if (totalDistance < radius) {
+                    if (Math.abs(totalDistance - radius) < 1.5 || distanceX < 1 || distanceY < 1) {
+                        code = 'B'; // Contornos internos e eixos estruturais
+                    } else {
+                        code = 'C'; // Miolo do desenho
+                    }
+                }
+
+                cell.textContent = code;
+                grid.appendChild(cell);
+            }
+        }
+    }
+
+    // Inicializa o primeiro tabuleiro ao carregar a página
+    window.onload = generateGrid;
+</script>
+
+</body>
+</html>
