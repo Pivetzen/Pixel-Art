@@ -8,6 +8,8 @@
         :root {
             --primary-color: #4a90e2;
             --primary-hover: #357abd;
+            --success-color: #2ecc71;
+            --success-hover: #27ae60;
             --bg-color: #f5f7fa;
             --card-bg: #ffffff;
             --text-color: #333333;
@@ -85,7 +87,6 @@
         }
 
         button {
-            background-color: var(--primary-color);
             color: white;
             border: none;
             padding: 9px 20px;
@@ -96,8 +97,20 @@
             transition: all 0.2s ease;
         }
 
-        button:hover {
+        .btn-primary {
+            background-color: var(--primary-color);
+        }
+
+        .btn-primary:hover {
             background-color: var(--primary-hover);
+        }
+
+        .btn-success {
+            background-color: var(--success-color);
+        }
+
+        .btn-success:hover {
+            background-color: var(--success-hover);
         }
 
         .legend {
@@ -172,12 +185,39 @@
             display: none;
         }
 
+        /* ==========================================================================
+           REGRAS DE IMPRESSÃO (A mágica para ocultar os botões no PDF acontece aqui)
+           ========================================================================== */
         @media print {
-            body { background: #fff; padding: 0; }
-            .container { box-shadow: none; padding: 0; max-width: 100%; }
-            .controls, button { display: none !important; }
-            .legend-item { border-color: #e2e8f0 !important; background: #fff !important; box-shadow: none !important; }
-            .grid-wrapper { border: none; padding: 0; }
+            body { 
+                background: #ffffff; 
+                padding: 0; 
+                margin: 0;
+            }
+            .container { 
+                box-shadow: none; 
+                padding: 0; 
+                max-width: 100%; 
+            }
+            /* Oculta os botões, seletores e descrição */
+            .controls, button, .description { 
+                display: none !important; 
+            }
+            /* Garante que a legenda não pareça um botão selecionável no papel */
+            .legend-item { 
+                border-color: #e2e8f0 !important; 
+                background: #ffffff !important; 
+                box-shadow: none !important; 
+                cursor: default;
+            }
+            .grid-wrapper { 
+                border: none; 
+                padding: 0; 
+                overflow: visible;
+            }
+            #pixelGrid {
+                page-break-inside: avoid; /* Evita que o tabuleiro quebre no meio de duas páginas */
+            }
         }
     </style>
 </head>
@@ -207,7 +247,8 @@
             </select>
         </div>
 
-        <button onclick="resetPainting()">Limpar Pintura</button>
+        <button class="btn-primary" onclick="resetPainting()">Limpar Pintura</button>
+        <button class="btn-success" onclick="window.print()">Gerar PDF / Imprimir</button>
     </div>
 
     <div class="legend" id="colorLegend"></div>
@@ -224,7 +265,6 @@
     const SPREADSHEET_ID = '1tKYP8mNXeND0o0xziEc-faBVXUjSQFq-c-k2YuFFopk';
     const CSV_URL = `https://docs.google.com/spreadsheets/d/${SPREADSHEET_ID}/gviz/tq?tqx=out:csv`;
 
-    // Paleta de segurança estável para conversão de imagens base do Sheets
     const imageDefaultPalette = [
         { code: '0', name: 'Fundo Claro', color: '#ffffff' },
         { code: '1', name: 'Preto / Escuro', color: '#1a1a1a' },
@@ -241,23 +281,16 @@
     let selectedColorCode = ''; 
     let selectedColorHex = '';
 
-    // Carrega a base de dados assim que a página abre
     async function loadSheetsDatabase() {
         const select = document.getElementById('artType');
-        
         try {
             const response = await fetch(CSV_URL);
             const csvText = await response.text();
-            
-            // Faz o parse simples das linhas do CSV
             const rows = csvText.split('\n').map(row => {
-                // Remove aspas que o Google coloca automaticamente
                 return row.split(',').map(cell => cell.replace(/^"(.*)"$/, '$1').trim());
             });
 
             select.innerHTML = '';
-            
-            // Ignora a primeira linha (cabeçalho) e preenche o select com as linhas válidas
             let validOptionsCount = 0;
             for (let i = 1; i < rows.length; i++) {
                 const [nomeArte, urlImagem] = rows[i];
@@ -273,9 +306,8 @@
             if (validOptionsCount === 0) {
                 select.innerHTML = '<option value="">Nenhuma arte cadastrada</option>';
             } else {
-                generateGrid(); // Gera o primeiro gráfico após popular
+                generateGrid();
             }
-
         } catch (error) {
             console.error("Erro ao acessar a planilha: ", error);
             select.innerHTML = '<option value="">Erro ao carregar dados do Sheets</option>';
@@ -396,7 +428,7 @@
         };
 
         img.onerror = function() {
-            grid.innerHTML = `<div style="padding: 20px; color: red; font-weight: bold;">Erro ao carregar ou processar o link da imagem da planilha. Certifique-se de usar URLs diretas e públicas (terminadas em .png ou .jpg).</div>`;
+            grid.innerHTML = `<div style="padding: 20px; color: red; font-weight: bold;">Erro ao carregar ou processar a imagem. Verifique o link da planilha.</div>`;
         };
     }
 
