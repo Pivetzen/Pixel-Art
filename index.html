@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Gerador e Editor de Pixel Art</title>
+    <title>Gerador de Pixel Art - Google Sheets DB</title>
     <style>
         :root {
             --primary-color: #4a90e2;
@@ -122,11 +122,6 @@
             user-select: none;
         }
 
-        .legend-item:hover {
-            border-color: #cbd5e1;
-            transform: translateY(-1px);
-        }
-
         .legend-item.active {
             border-color: var(--primary-color);
             background-color: #ebf5ff;
@@ -171,12 +166,10 @@
             box-sizing: border-box;
             background-color: #ffffff;
             cursor: cell;
-            transition: background-color 0.1s ease;
         }
 
-        .cell:hover {
-            filter: brightness(0.95);
-            background-color: #f0f4f8;
+        #hiddenCanvas {
+            display: none;
         }
 
         @media print {
@@ -191,8 +184,8 @@
 <body>
 
 <div class="container">
-    <h1>Gerador e Editor de Pixel Art</h1>
-    <p class="description">Selecione o tamanho e a arte. Clique nas cores da legenda para ativar o pincel e pinte o tabuleiro!</p>
+    <h1>Gerador de Pixel Art</h1>
+    <p class="description">As opções de artes abaixo são carregadas em tempo real direto de uma planilha do Google Sheets!</p>
 
     <div class="controls">
         <div class="control-group">
@@ -210,9 +203,7 @@
         <div class="control-group">
             <label for="artType">Arte Base:</label>
             <select id="artType" onchange="generateGrid()">
-                <option value="cupcake">Cupcake Colorido</option>
-                <option value="sword">Espada Pixel</option>
-                <option value="heart">Coração Místico</option>
+                <option value="">Carregando artes...</option>
             </select>
         </div>
 
@@ -226,193 +217,197 @@
     </div>
 </div>
 
-<script>
-    // Configurações das paletas e lógicas de desenho por arte
-    const artConfigurations = {
-        cupcake: {
-            palette: [
-                { code: 'B', name: 'Branco/Fundo', color: '#ffffff' },
-                { code: 'R', name: 'Vermelho', color: '#ff4d4d' },
-                { code: 'A', name: 'Laranja', color: '#ff944d' },
-                { code: 'Y', name: 'Amarelo', color: '#ffd11a' },
-                { code: 'V', name: 'Verde', color: '#2ecc71' },
-                { code: 'C', name: 'Azul Celeste', color: '#5ec2f2' },
-                { code: 'P', name: 'Rosa Candy', color: '#ff66b2' },
-                { code: 'M', name: 'Roxo', color: '#9b59b6' }
-            ],
-            fn: (row, col, size, center) => {
-                // Algoritmo para estruturar a silhueta de um Cupcake centralizado dinamicamente
-                const pctY = row / size;
-                const pctX = Math.abs(col - center) / center;
-                
-                if (pctY < 0.15 && pctX < 0.08) return 'R'; // Cereja no topo
-                if (pctY >= 0.15 && pctY < 0.25 && pctX < 0.25) return 'A'; // Creme camada 1
-                if (pctY >= 0.25 && pctY < 0.38 && pctX < 0.40) return 'Y'; // Creme camada 2
-                if (pctY >= 0.38 && pctY < 0.50 && pctX < 0.52) return 'V'; // Creme camada 3
-                if (pctY >= 0.50 && pctY < 0.58 && pctX < 0.55) return 'M'; // Junção do topo com o bolo
-                if (pctY >= 0.58 && pctY < 0.88) {
-                    // Corpo do bolinho afunilado
-                    const limitX = 0.45 - ((pctY - 0.58) * 0.15);
-                    if (pctX < limitX) {
-                        return (col % 2 === 0) ? 'P' : 'C'; // Listras da forminha
-                    }
-                }
-                return 'B';
-            }
-        },
-        sword: {
-            palette: [
-                { code: 'B', name: 'Branco/Fundo', color: '#ffffff' },
-                { code: 'P', name: 'Preto (Contorno)', color: '#2c3e50' },
-                { code: 'C', name: 'Cinza (Lâmina)', color: '#bdc3c7' },
-                { code: 'E', name: 'Azul (Guarda)', color: '#2980b9' },
-                { code: 'M', name: 'Marrom (Cabo)', color: '#8a5229' }
-            ],
-            fn: (row, col, size, center) => {
-                // Lógica proporcional para a espada diagonal
-                const diag = row - col;
-                const invDiag = row + col;
-                const doubleSize = size * 2;
+<canvas id="hiddenCanvas"></canvas>
 
-                if (row < size * 0.55 && col > size * 0.45 && Math.abs(diag) < size * 0.08) {
-                    return (Math.abs(diag) < size * 0.04) ? 'C' : 'P';
-                }
-                // Guarda da espada
-                if (Math.abs(invDiag - size) < size * 0.12 && row > size * 0.45 && row < size * 0.75 && col > size * 0.25 && col < size * 0.55) {
-                    return 'E';
-                }
-                // Cabo
-                if (row > size * 0.60 && col < size * 0.40 && Math.abs(diag) < size * 0.05) {
-                    return 'M';
-                }
-                // Contorno geral do cabo e base
-                if (row > size * 0.58 && col < size * 0.42 && Math.abs(diag) < size * 0.09) {
-                    return 'P';
-                }
-                return 'B';
-            }
-        },
-        heart: {
-            palette: [
-                { code: 'B', name: 'Branco/Fundo', color: '#ffffff' },
-                { code: 'V', name: 'Vermelho Vivo', color: '#e74c3c' },
-                { code: 'P', name: 'Rosa Escuro', color: '#c0392b' },
-                { code: 'A', name: 'Amarelo Brilho', color: '#f1c40f' }
-            ],
-            fn: (row, col, size, center) => {
-                // Equação matemática adaptada do coração para grids dinâmicos
-                const x = (col - center) / (size * 0.45);
-                const y = -(row - center * 0.8) / (size * 0.45);
-                
-                // Fórmula clássica do coração: (x^2 + y^2 - 1)^3 - x^2 * y^3 <= 0
-                const expression = Math.pow(x*x + y*y - 1, 3) - x*x * Math.pow(y, 3);
-                
-                if (expression <= 0) {
-                    if (x > -0.3 && x < -0.1 && y > 0.3 && y < 0.5) return 'A'; // Ponto de brilho/reflexo
-                    return (x > 0 || y < 0) ? 'V' : 'P'; // Degradê/Sombra interna
-                }
-                return 'B';
-            }
-        }
-    };
+<script>
+    // 1. INSIRA O ID DA SUA PLANILHA DO GOOGLE SHEETS AQUI:
+    const SPREADSHEET_ID = '1tKYP8mNXeND0o0xziEc-faBVXUjSQFq-c-k2YuFFopk';
+    const CSV_URL = `https://docs.google.com/spreadsheets/d/${SPREADSHEET_ID}/gviz/tq?tqx=out:csv`;
+
+    // Paleta de segurança estável para conversão de imagens base do Sheets
+    const imageDefaultPalette = [
+        { code: '0', name: 'Fundo Claro', color: '#ffffff' },
+        { code: '1', name: 'Preto / Escuro', color: '#1a1a1a' },
+        { code: '2', name: 'Vermelho', color: '#e74c3c' },
+        { code: '3', name: 'Azul', color: '#3498db' },
+        { code: '4', name: 'Verde', color: '#2ecc71' },
+        { code: '5', name: 'Amarelo', color: '#f1c40f' },
+        { code: '6', name: 'Laranja', color: '#e67e22' },
+        { code: '7', name: 'Roxo', color: '#9b59b6' },
+        { code: '8', name: 'Cinza', color: '#95a5a6' },
+        { code: '9', name: 'Rosa / Tom Pele', color: '#f39c12' }
+    ];
 
     let selectedColorCode = ''; 
     let selectedColorHex = '';
 
+    // Carrega a base de dados assim que a página abre
+    async function loadSheetsDatabase() {
+        const select = document.getElementById('artType');
+        
+        try {
+            const response = await fetch(CSV_URL);
+            const csvText = await response.text();
+            
+            // Faz o parse simples das linhas do CSV
+            const rows = csvText.split('\n').map(row => {
+                // Remove aspas que o Google coloca automaticamente
+                return row.split(',').map(cell => cell.replace(/^"(.*)"$/, '$1').trim());
+            });
+
+            select.innerHTML = '';
+            
+            // Ignora a primeira linha (cabeçalho) e preenche o select com as linhas válidas
+            let validOptionsCount = 0;
+            for (let i = 1; i < rows.length; i++) {
+                const [nomeArte, urlImagem] = rows[i];
+                if (nomeArte && urlImagem) {
+                    const option = document.createElement('option');
+                    option.value = urlImagem;
+                    option.textContent = nomeArte;
+                    select.appendChild(option);
+                    validOptionsCount++;
+                }
+            }
+
+            if (validOptionsCount === 0) {
+                select.innerHTML = '<option value="">Nenhuma arte cadastrada</option>';
+            } else {
+                generateGrid(); // Gera o primeiro gráfico após popular
+            }
+
+        } catch (error) {
+            console.error("Erro ao acessar a planilha: ", error);
+            select.innerHTML = '<option value="">Erro ao carregar dados do Sheets</option>';
+        }
+    }
+
     function selectColor(code, hex, element) {
         selectedColorCode = code;
         selectedColorHex = hex;
-        
-        // Atualiza a classe ativa visualmente na legenda
         document.querySelectorAll('.legend-item').forEach(item => item.classList.remove('active'));
         element.classList.add('active');
     }
 
-    function generateGrid() {
-        const grid = document.getElementById('pixelGrid');
-        const size = parseInt(document.getElementById('gridSize').value);
-        const artType = document.getElementById('artType').value;
-        const colorLegend = document.getElementById('colorLegend');
-        
-        const currentArt = artConfigurations[artType];
-        
-        // 1. Renderiza a Legenda Dinâmica com as Cores Ativas
-        colorLegend.innerHTML = '';
-        currentArt.palette.forEach((item, index) => {
-            const legendItem = document.createElement('div');
-            legendItem.classList.add('legend-item');
-            if (index === 0) legendItem.classList.add('active'); // Seleciona a primeira cor por padrão
-            
-            legendItem.onclick = () => selectColor(item.code, item.color, legendItem);
-            
-            const colorBox = document.createElement('div');
-            colorBox.classList.add('color-box');
-            colorBox.style.backgroundColor = item.color;
-            
-            legendItem.appendChild(colorBox);
-            legendItem.append(`${item.code} = ${item.name}`);
-            colorLegend.appendChild(legendItem);
-            
-            if (index === 0) {
-                selectedColorCode = item.code;
-                selectedColorHex = item.color;
+    function getClosestPaletteColor(r, g, b) {
+        let minDistance = Infinity;
+        let closest = imageDefaultPalette[0];
+
+        imageDefaultPalette.forEach(item => {
+            const hex = item.color.replace('#', '');
+            const pr = parseInt(hex.substring(0, 2), 16);
+            const pg = parseInt(hex.substring(2, 4), 16);
+            const pb = parseInt(hex.substring(4, 6), 16);
+
+            const distance = Math.sqrt((r - pr) ** 2 + (g - pg) ** 2 + (b - pb) ** 2);
+            if (distance < minDistance) {
+                minDistance = distance;
+                closest = item;
             }
         });
+        return closest;
+    }
 
-        // 2. Configura e Constrói a Estrutura do Grid
-        grid.innerHTML = '';
-        let cellSize = 28;
-        if (size > 24) cellSize = 22;
-        if (size > 36) cellSize = 16;
-        if (size > 48) cellSize = 12;
-        if (size > 60) cellSize = 10;
+    function generateGrid() {
+        const urlImagem = document.getElementById('artType').value;
+        if (!urlImagem) return;
 
-        grid.style.gridTemplateColumns = `repeat(${size}, ${cellSize}px)`;
-        grid.style.gridTemplateRows = `repeat(${size}, ${cellSize}px)`;
+        const grid = document.getElementById('pixelGrid');
+        const size = parseInt(document.getElementById('gridSize').value);
+        const colorLegend = document.getElementById('colorLegend');
+        const canvas = document.getElementById('hiddenCanvas');
+        const ctx = canvas.getContext('2d');
 
-        const center = size / 2;
+        const img = new Image();
+        img.crossOrigin = "Anonymous"; 
+        img.src = urlImagem;
 
-        for (let row = 0; row < size; row++) {
-            for (let col = 0; col < size; col++) {
-                const cell = document.createElement('div');
-                cell.classList.add('cell');
-                cell.style.width = `${cellSize}px`;
-                cell.style.height = `${cellSize}px`;
-                cell.style.fontSize = `${cellSize * 0.5}px`;
+        img.onload = function() {
+            canvas.width = size;
+            canvas.height = size;
+            ctx.drawImage(img, 0, 0, size, size);
 
-                // Aplica a regra matemática correspondente à arte selecionada
-                const code = currentArt.fn(row, col, size, center);
-                cell.textContent = code;
-                
-                // Atributo customizado para sabermos a resposta correta caso queira validar no futuro
-                cell.dataset.correctCode = code; 
+            const imgData = ctx.getImageData(0, 0, size, size).data;
 
-                // Evento de Pintura ao Clicar
-                cell.onclick = () => {
-                    cell.style.backgroundColor = selectedColorHex;
-                    // Se pintou de cor muito escura, muda o texto para branco para manter a legibilidade
-                    if (selectedColorCode === 'P' || selectedColorCode === 'M') {
-                        cell.style.color = '#fff';
-                    } else {
-                        cell.style.color = '#7f8c8d';
+            colorLegend.innerHTML = '';
+            imageDefaultPalette.forEach((item, index) => {
+                const legendItem = document.createElement('div');
+                legendItem.classList.add('legend-item');
+                if (index === 0) legendItem.classList.add('active');
+                legendItem.onclick = () => selectColor(item.code, item.color, legendItem);
+
+                const colorBox = document.createElement('div');
+                colorBox.style.backgroundColor = item.color;
+                colorBox.classList.add('color-box');
+
+                legendItem.appendChild(colorBox);
+                legendItem.append(`${item.code} = ${item.name}`);
+                colorLegend.appendChild(legendItem);
+
+                if (index === 0) {
+                    selectedColorCode = item.code;
+                    selectedColorHex = item.color;
+                }
+            });
+
+            grid.innerHTML = '';
+            let cellSize = 28;
+            if (size > 24) cellSize = 22;
+            if (size > 36) cellSize = 16;
+            if (size > 48) cellSize = 12;
+            if (size > 60) cellSize = 10;
+
+            grid.style.gridTemplateColumns = `repeat(${size}, ${cellSize}px)`;
+            grid.style.gridTemplateRows = `repeat(${size}, ${cellSize}px)`;
+
+            let dataIndex = 0;
+            for (let row = 0; row < size; row++) {
+                for (let col = 0; col < size; col++) {
+                    const r = imgData[dataIndex];
+                    const g = imgData[dataIndex + 1];
+                    const b = imgData[dataIndex + 2];
+                    const a = imgData[dataIndex + 3];
+
+                    let matched = imageDefaultPalette[0];
+                    if (a >= 50) {
+                        matched = getClosestPaletteColor(r, g, b);
                     }
-                };
 
-                grid.appendChild(cell);
+                    const cell = document.createElement('div');
+                    cell.classList.add('cell');
+                    cell.style.width = `${cellSize}px`;
+                    cell.style.height = `${cellSize}px`;
+                    cell.style.fontSize = `${cellSize * 0.5}px`;
+                    cell.textContent = matched.code;
+
+                    cell.onclick = () => {
+                        cell.style.backgroundColor = selectedColorHex;
+                        if (selectedColorCode === '1' || selectedColorCode === '7') {
+                            cell.style.color = '#fff';
+                        } else {
+                            cell.style.color = '#7f8c8d';
+                        }
+                    };
+
+                    grid.appendChild(cell);
+                    dataIndex += 4;
+                }
             }
-        }
+        };
+
+        img.onerror = function() {
+            grid.innerHTML = `<div style="padding: 20px; color: red; font-weight: bold;">Erro ao carregar ou processar o link da imagem da planilha. Certifique-se de usar URLs diretas e públicas (terminadas em .png ou .jpg).</div>`;
+        };
     }
 
     function resetPainting() {
-        // Retorna todos os fundos das células para branco puro mantendo apenas as letras guia
         document.querySelectorAll('.cell').forEach(cell => {
             cell.style.backgroundColor = '#ffffff';
             cell.style.color = '#7f8c8d';
         });
     }
 
-    // Inicializa a aplicação
-    window.onload = generateGrid;
+    window.onload = loadSheetsDatabase;
 </script>
 
 </body>
